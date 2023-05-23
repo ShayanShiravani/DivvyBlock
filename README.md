@@ -1,6 +1,6 @@
 # CNP Trustless Co-Purchase Project Contracts
 
-# Compile
+# Deploy
 $ npm install  
-$ ./node_modules/.bin/truffle compile  
+$ npm run deploy  
 

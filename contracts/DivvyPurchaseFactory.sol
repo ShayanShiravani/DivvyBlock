@@ -28,21 +28,24 @@ contract DivvyPurchaseFactory is AccessControl {
     function listItem(
         address collection,
         uint256 tokenId,
-        uint256 price,
+        uint256 sharePrice,
+        uint256 sharesCount,
         address paymentToken
-    ) public {
+    ) external {
         require(
             paymentTokenExists(paymentToken) || paymentToken == address(0),
             "Invalid payment token!"
         );
-        require(price > 0, "price <= 0");
+        require(sharePrice > 0, "sharePrice <= 0");
+        require(sharesCount > 0, "sharesCount <= 0");
         require(!isTokenListed(collection, tokenId), "Already listed!");
 
         DivvyPurchaseController controller = new DivvyPurchaseController(
             controllersAdmin,
             collection,
             tokenId,
-            price,
+            sharePrice,
+            sharesCount,
             paymentToken
         );
 

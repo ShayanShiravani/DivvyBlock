@@ -11,140 +11,116 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
     bytes4 public constant _ERC721_RECEIVED = 0x150b7a02;
 
     mapping(uint256 => offer) public offers; // offerId => offer
-    uint256 public lastOfferId = 0;
+    uint256 public currentOfferId = 0;
 
     address public collection;
     uint256 public tokenId;
-    uint256 public price;
+    uint256 public sharePrice;
+    uint256 public sharesCount;
     address public paymentToken; // TODO: Support multiple payment tokens
     bool public isListed = true;
 
-    event AddOffer(uint256 offerId, address initiator, uint256 initialAmount);
     event Purchase(uint256 offerId);
 
     struct offer {
-        address initiator;
-        uint256 currentAmount;
-        uint256 minShareAmount;
+        uint256 purchasedShares;
         PurchaseShare[] shares;
         bool isDone;
+        bool exists;
     }
 
     struct PurchaseShare {
         address stakeholder;
         uint256 amount;
+        uint256 price; // Each share can has a different price
     }
 
     constructor(
         address _admin,
         address _collection,
         uint256 _tokenId,
-        uint256 _price,
+        uint256 _sharePrice,
+        uint256 _sharesCount,
         address _paymentToken
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _admin);
         collection = _collection;
         tokenId = _tokenId;
-        price = _price;
+        sharePrice = _sharePrice;
+        sharesCount = _sharesCount;
         paymentToken = _paymentToken;
     }
 
-    function changePrice(uint256 _price) public {
-        require(_price > 0, "price <= 0");
-        price = _price;
+    function setSharePrice(
+        uint256 price
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(price > 0, "sharePrice <= 0");
+        sharePrice = price;
     }
 
-    function makeOffer(
-        uint256 minShareAmount,
-        uint256 shareAmount
-    ) public payable whenNotPaused returns (uint256 offerId) {
-        require(isListed, "!isListed");
-        require(minShareAmount > 0, "minShareAmount <= 0");
-        require(
-            shareAmount > 0 &&
-                shareAmount <= price &&
-                shareAmount >= minShareAmount,
-            "Invalid share amount!"
-        );
-
-        // It can be modified to support multiple payment tokens
-        if (paymentToken == address(0)) {
-            require(msg.value == shareAmount, "!Share amount");
-        } else {
-            IERC20 token = IERC20(paymentToken);
-            token.transferFrom(msg.sender, address(this), shareAmount);
-        }
-
-        offerId = ++lastOfferId;
-
-        offer storage newOffer = offers[offerId];
-
-        newOffer.initiator = msg.sender;
-        newOffer.currentAmount = shareAmount;
-        newOffer.minShareAmount = minShareAmount;
-        newOffer.isDone = false;
-
-        require(
-            price - shareAmount >= minShareAmount || price == shareAmount,
-            "Remained amount < minShareAmount"
-        );
-
-        newOffer.shares.push(
-            PurchaseShare({stakeholder: msg.sender, amount: shareAmount})
-        );
-
-        if (shareAmount == price) {
-            purchaseNFT(offerId);
-        }
-
-        emit AddOffer(offerId, msg.sender, shareAmount);
+    function setSharesCount(
+        uint256 count
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(count > 0, "sharesCount <= 0");
+        sharesCount = count;
     }
 
-    function addShare(
-        uint256 offerId,
-        uint256 amount
-    ) public payable whenNotPaused {
-        require(isListed, "!isListed");
-        require(offers[offerId].initiator != address(0), "!offer");
+    function newOffer() private {
+        uint256 offerId = ++currentOfferId;
 
-        offer storage _offer = offers[offerId];
+        offer storage _newOffer = offers[offerId];
+
+        _newOffer.purchasedShares = 0;
+        _newOffer.isDone = false;
+        _newOffer.exists = true;
+
+        currentOfferId = offerId;
+    }
+
+    function addShare(uint256 amount) external payable whenNotPaused {
+        require(isListed, "!isListed");
+        require(offers[currentOfferId].exists, "!offer");
+
+        offer storage _offer = offers[currentOfferId];
 
         require(!_offer.isDone, "It's already done!");
         require(
-            amount >= _offer.minShareAmount &&
-                (amount + _offer.currentAmount) <= price,
+            amount > 0 && amount <= (sharesCount - _offer.purchasedShares),
             "Invalid share amount!"
         );
 
+        uint256 shareValue = amount * sharePrice;
+
         if (paymentToken == address(0)) {
-            require(msg.value == amount, "!Share amount");
+            require(msg.value == shareValue, "!msg.value");
         } else {
             IERC20 token = IERC20(paymentToken);
-            token.transferFrom(msg.sender, address(this), amount);
+            token.transferFrom(msg.sender, address(this), shareValue);
         }
 
         _offer.shares.push(
-            PurchaseShare({stakeholder: msg.sender, amount: amount})
+            PurchaseShare({
+                stakeholder: msg.sender,
+                amount: amount,
+                price: sharePrice
+            })
         );
-        _offer.currentAmount += amount;
+        _offer.purchasedShares += amount;
 
-        require(
-            price - _offer.currentAmount >= _offer.minShareAmount ||
-                price == _offer.currentAmount,
-            "Remained amount < minShareAmount"
-        );
-
-        if (_offer.currentAmount == price) {
-            purchaseNFT(offerId);
+        if (_offer.purchasedShares == sharesCount) {
+            purchaseNFT();
         }
     }
 
-    function deleteShare(uint256 offerId, uint256 index) public whenNotPaused {
-        require(offers[offerId].initiator != address(0), "!offer");
+    function deleteShare(
+        uint256 offerId,
+        uint256 index
+    ) external whenNotPaused {
+        require(offers[offerId].exists, "!offer");
 
         offer storage _offer = offers[offerId];
 
-        require(index < _offer.shares.length, "Invalid index!");
+        require(index >= 0 && index < _offer.shares.length, "Invalid index!");
 
         PurchaseShare memory share = _offer.shares[index];
         require(
@@ -152,23 +128,25 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
             "Permission denied!"
         );
 
-        _offer.currentAmount -= share.amount;
+        _offer.purchasedShares -= share.amount;
 
+        // Delete the share from the shares list
         for (uint256 i = index; i < _offer.shares.length - 1; i++) {
             _offer.shares[i] = _offer.shares[i + 1];
         }
-
         _offer.shares.pop();
 
+        uint256 shareValue = share.amount * share.price;
+
         if (paymentToken == address(0)) {
-            payable(msg.sender).transfer(share.amount);
+            payable(msg.sender).transfer(shareValue);
         } else {
-            IERC20(paymentToken).transfer(msg.sender, share.amount);
+            IERC20(paymentToken).transfer(msg.sender, shareValue);
         }
     }
 
-    function purchaseNFT(uint256 offerId) private {
-        offer storage _offer = offers[offerId];
+    function purchaseNFT() private {
+        offer storage _offer = offers[currentOfferId];
 
         IDivvyERC721 nft = IDivvyERC721(collection);
 
@@ -178,20 +156,28 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         _offer.isDone = true;
         isListed = false;
 
+        uint256 price = 0;
+
+        for (uint256 i = 0; i < _offer.shares.length; i++) {
+            PurchaseShare memory share = _offer.shares[i];
+            price += (share.amount * share.price);
+        }
+
         if (paymentToken == address(0)) {
             payable(owner).transfer(price);
         } else {
             IERC20(paymentToken).transfer(owner, price);
         }
 
-        emit Purchase(offerId);
+        emit Purchase(currentOfferId);
     }
 
-    function relist() public onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function relist() external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
         isListed = true;
+        newOffer();
     }
 
-    function unlist() public onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function unlist() external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
         isListed = false;
     }
 
@@ -209,11 +195,12 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
     function getShare(
         uint256 offerId,
         uint256 index
-    ) public view returns (address stakeholder, uint256 amount) {
+    ) public view returns (address stakeholder, uint256 amount, uint256 price) {
         offer memory _offer = offers[offerId];
 
         stakeholder = _offer.shares[index].stakeholder;
         amount = _offer.shares[index].amount;
+        price = _offer.shares[index].price;
     }
 
     function transferToken(

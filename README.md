@@ -1,4 +1,4 @@
-# CNP Trustless Co-Purchase Project Contracts
+# DivvyBlock Co-Purchase Project Contracts
 
 # Deploy
 $ npm install  

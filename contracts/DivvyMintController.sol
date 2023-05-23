@@ -61,7 +61,7 @@ contract DivvyMintController is
         sharePrice = price;
     }
 
-    function changeSharesCount(uint256 count) external onlyOwner {
+    function setSharesCount(uint256 count) external onlyOwner {
         require(count > 0, "sharesCount <= 0");
         sharesCount = count;
     }

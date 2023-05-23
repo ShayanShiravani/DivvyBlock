@@ -24,7 +24,7 @@ contract DivvyMintFactory is AccessControl {
         uint256 sharePrice,
         uint256 sharesCount,
         address paymentToken
-    ) external returns (uint256 nftId) {
+    ) external {
         require(
             paymentTokenExists(paymentToken) || paymentToken == address(0),
             "Invalid payment token!"
@@ -33,7 +33,7 @@ contract DivvyMintFactory is AccessControl {
         require(sharesCount > 0, "sharesCount <= 0");
         require(nftIds[nftAddress] == 0, "Already listed!");
 
-        nftId = ++lastNFTId;
+        uint256 nftId = ++lastNFTId;
 
         DivvyMintController NFTController = new DivvyMintController(
             controllersAdmin,

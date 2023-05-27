@@ -63,6 +63,10 @@ contract DivvyMintController is
 
     function setSharesCount(uint256 count) external onlyOwner {
         require(count > 0, "sharesCount <= 0");
+        require(
+            count > mintRequests[currentRequestId].purchasedShares,
+            "sharesCount can not be less than or equals purchasedShares"
+        );
         sharesCount = count;
     }
 

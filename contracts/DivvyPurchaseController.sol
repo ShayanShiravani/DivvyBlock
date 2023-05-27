@@ -49,6 +49,7 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         sharePrice = _sharePrice;
         sharesCount = _sharesCount;
         paymentToken = _paymentToken;
+        newOffer();
     }
 
     function setSharePrice(
@@ -62,6 +63,10 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         uint256 count
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(count > 0, "sharesCount <= 0");
+        require(
+            count > offers[currentOfferId].purchasedShares,
+            "sharesCount can not be less than or equals purchasedShares"
+        );
         sharesCount = count;
     }
 

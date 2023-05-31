@@ -175,12 +175,14 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         emit Purchase(currentOfferId);
     }
 
-    function relist() external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function relist() external onlyRole(DEFAULT_ADMIN_ROLE) {
         isListed = true;
-        newOffer();
+        if (offers[currentOfferId].isDone) {
+            newOffer();
+        }
     }
 
-    function unlist() external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function unlist() external onlyRole(DEFAULT_ADMIN_ROLE) {
         isListed = false;
     }
 

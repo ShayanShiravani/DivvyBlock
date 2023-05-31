@@ -24,6 +24,7 @@ contract DivvyMintController is
     uint256 public sharesCount;
     address public paymentToken; // TODO: Support multiple payment tokens
     uint256 public balance = 0;
+    bool public mintAllowed = true;
 
     event Mint(uint256 requestId, uint256 tokenId);
 
@@ -39,6 +40,11 @@ contract DivvyMintController is
         address stakeholder;
         uint256 amount;
         uint256 price; // Each share can has a different price
+    }
+
+    modifier whenMintAllowed() {
+        require(mintAllowed, "Minting is not allowed");
+        _;
     }
 
     constructor(
@@ -70,6 +76,10 @@ contract DivvyMintController is
         sharesCount = count;
     }
 
+    function stopMinting() external onlyOwner {
+        mintAllowed = false;
+    }
+
     function newMintRequest() private {
         uint256 requestId = ++currentRequestId;
 
@@ -81,16 +91,15 @@ contract DivvyMintController is
         mintRequest.exists = true;
     }
 
-    function addShare(uint256 amount) external payable whenNotPaused {
+    function addShare(
+        uint256 amount
+    ) external payable whenNotPaused whenMintAllowed {
         require(mintRequests[currentRequestId].exists, "!Mint request");
-
-        MintRequest storage mintRequest = mintRequests[currentRequestId];
-
-        require(!mintRequest.isMinted, "It's already minted!");
         require(
-            amount > 0 && amount <= (sharesCount - mintRequest.purchasedShares),
-            "Invalid share amount!"
+            !mintRequests[currentRequestId].isMinted,
+            "It's already minted!"
         );
+        require(amount > 0, "amount <= 0");
 
         uint256 shareValue = amount * sharePrice;
 
@@ -100,6 +109,24 @@ contract DivvyMintController is
             IERC20 token = IERC20(paymentToken);
             token.transferFrom(msg.sender, address(this), shareValue);
         }
+
+        while (amount > 0) {
+            uint256 remainedShares = sharesCount -
+                mintRequests[currentRequestId].purchasedShares;
+            uint256 purchaseAmount = 0;
+
+            if (amount > remainedShares) {
+                purchaseAmount = remainedShares;
+            } else {
+                purchaseAmount = amount;
+            }
+            amount -= purchaseAmount;
+            purchaseShare(purchaseAmount);
+        }
+    }
+
+    function purchaseShare(uint256 amount) private {
+        MintRequest storage mintRequest = mintRequests[currentRequestId];
 
         mintRequest.shares.push(
             MintShare({
@@ -214,7 +241,7 @@ contract DivvyMintController is
     function transferToken(
         uint256 requestId,
         address to
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(mintRequests[requestId].exists, "!Mint request");
 
         MintRequest storage mintRequest = mintRequests[requestId];
@@ -234,5 +261,13 @@ contract DivvyMintController is
         bytes calldata
     ) public pure override returns (bytes4) {
         return _ERC721_RECEIVED;
+    }
+
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 }

@@ -219,4 +219,12 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
     ) public pure override returns (bytes4) {
         return _ERC721_RECEIVED;
     }
+
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
+    }
 }

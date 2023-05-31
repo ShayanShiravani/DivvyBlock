@@ -78,8 +78,6 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         _newOffer.purchasedShares = 0;
         _newOffer.isDone = false;
         _newOffer.exists = true;
-
-        currentOfferId = offerId;
     }
 
     function addShare(uint256 amount) external payable whenNotPaused {

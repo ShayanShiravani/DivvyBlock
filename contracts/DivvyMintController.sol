@@ -79,7 +79,6 @@ contract DivvyMintController is
         mintRequest.tokenId = 0;
         mintRequest.isMinted = false;
         mintRequest.exists = true;
-        currentRequestId = requestId;
     }
 
     function addShare(uint256 amount) external payable whenNotPaused {

@@ -206,9 +206,7 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         price = _offer.shares[index].price;
     }
 
-    function transferToken(
-        address to
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused {
+    function transferToken(address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
         IDivvyERC721 nft = IDivvyERC721(collection);
         nft.safeTransferFrom(address(this), to, tokenId);
     }

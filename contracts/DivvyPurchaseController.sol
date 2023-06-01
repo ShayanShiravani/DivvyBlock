@@ -21,6 +21,18 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
     bool public isListed = true;
 
     event Purchase(uint256 offerId);
+    event AddShare(
+        uint256 offerId,
+        address stakeholder,
+        uint256 amount,
+        uint256 sharePrice
+    );
+    event DeleteShare(
+        uint256 offerId,
+        address stakeholder,
+        uint256 amount,
+        uint256 sharePrice
+    );
 
     struct offer {
         uint256 purchasedShares;
@@ -110,6 +122,8 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         );
         _offer.purchasedShares += amount;
 
+        emit AddShare(currentOfferId, msg.sender, amount, sharePrice);
+
         if (_offer.purchasedShares == sharesCount) {
             purchaseNFT();
         }
@@ -146,6 +160,8 @@ contract DivvyPurchaseController is AccessControl, IERC721Receiver, Pausable {
         } else {
             IERC20(paymentToken).transfer(msg.sender, shareValue);
         }
+
+        emit DeleteShare(offerId, share.stakeholder, share.amount, share.price);
     }
 
     function purchaseNFT() private {

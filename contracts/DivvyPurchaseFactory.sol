@@ -12,7 +12,7 @@ contract DivvyPurchaseFactory is AccessControl {
 
     address controllersAdmin;
 
-    event ListItem(address collection, uint256 tokenId);
+    event ListItem(address collection, uint256 tokenId, address controller);
 
     struct nft {
         address collection;
@@ -58,7 +58,7 @@ contract DivvyPurchaseFactory is AccessControl {
             })
         );
 
-        emit ListItem(collection, tokenId);
+        emit ListItem(collection, tokenId, address(controller));
     }
 
     function addPaymentToken(

@@ -27,6 +27,18 @@ contract DivvyMintController is
     bool public mintAllowed = true;
 
     event Mint(uint256 requestId, uint256 tokenId);
+    event AddShare(
+        uint256 requestId,
+        address stakeholder,
+        uint256 amount,
+        uint256 sharePrice
+    );
+    event DeleteShare(
+        uint256 requestId,
+        address stakeholder,
+        uint256 amount,
+        uint256 sharePrice
+    );
 
     struct MintRequest {
         uint256 purchasedShares;
@@ -137,6 +149,8 @@ contract DivvyMintController is
         );
         mintRequest.purchasedShares += amount;
 
+        emit AddShare(currentRequestId, msg.sender, amount, sharePrice);
+
         if (mintRequest.purchasedShares == sharesCount) {
             mintNFT();
         }
@@ -176,6 +190,13 @@ contract DivvyMintController is
         } else {
             IERC20(paymentToken).transfer(msg.sender, shareValue);
         }
+
+        emit DeleteShare(
+            requestId,
+            share.stakeholder,
+            share.amount,
+            share.price
+        );
     }
 
     function mintNFT() private {

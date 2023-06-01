@@ -12,7 +12,7 @@ contract DivvyMintFactory is AccessControl {
     uint256 public lastNFTId = 0;
     address controllersAdmin;
 
-    event ListNFT(address addr, uint256 nftId);
+    event ListNFT(address collection, uint256 nftId, address controller);
 
     constructor() {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -47,7 +47,7 @@ contract DivvyMintFactory is AccessControl {
 
         NFTController.transferOwnership(msg.sender);
 
-        emit ListNFT(nftAddress, nftId);
+        emit ListNFT(nftAddress, nftId, address(NFTController));
     }
 
     function addNFT(
@@ -61,7 +61,7 @@ contract DivvyMintFactory is AccessControl {
         nftControllers[nftId] = controller;
         nftIds[nft] = nftId;
 
-        emit ListNFT(nft, nftId);
+        emit ListNFT(nft, nftId, controller);
     }
 
     function addPaymentToken(
